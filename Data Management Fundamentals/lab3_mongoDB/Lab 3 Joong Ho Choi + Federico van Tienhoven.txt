@@ -1,0 +1,360 @@
+Question 1
+
+db.games.count(
+{"teams.name":"Detroit Pistons"}
+);
+
+Output: 2256
+------------
+Question 2
+
+db.games.count( { "box.players.player": "Juwan Howard" } );
+
+Output: 1215
+
+db.games.count( { "box.players.player": "Chris Webber" } );
+
+Output: 840
+
+Answer: Juwan Howard played more games.
+------------
+Question 4
+
+db.listingsAndReviews.aggregate([
+    { $match: { "price": {$lt : 90}, 
+                "property_type": "Apartment",
+                "bed_type": "Real Bed",
+                "address.government_area": "East Village",
+                "address.market": "New York" } },
+    { $project: { _id: 0,
+                  "listing name": "$name",
+                  "listing_url": 1,
+                  "neighborhood overview": "$neighborhood_overview",
+                  "price": 1,
+                  "host name": "$host.host_name" } }
+]);
+
+Output: 
+/* 1 */
+{
+    "listing_url" : "https://www.airbnb.com/rooms/17147561",
+    "price" : NumberDecimal("85.00"),
+    "listing name" : "Best Location + Private Roof Deck",
+    "neighborhood overview" : "East village is great, tons of bars and restaurants and very near to every other neighborhood: Soho, Wall Street, Broadway, Times Square, Central Park AND 5 minutes to Williamsburg and 20 to downtown Brooklyn and Barclay's",
+    "host name" : "Joe"
+}
+
+/* 2 */
+{
+    "listing_url" : "https://www.airbnb.com/rooms/263190",
+    "price" : NumberDecimal("88.00"),
+    "listing name" : "Room in East Village with Private Entrance",
+    "neighborhood overview" : "",
+    "host name" : "Dominique"
+}
+
+/* 3 */
+{
+    "listing_url" : "https://www.airbnb.com/rooms/314982",
+    "price" : NumberDecimal("89.00"),
+    "listing name" : "Share in NYC's trendy East Village",
+    "neighborhood overview" : "About the Neighborhood - East Village  There are many restaurants, shops, a playhouse, live music, and laundromats in the nearby vicinity. I believe that the East Village is the best neighborhood in New York City and I created a blog to provide guests with info on restaurants, pubs, local attractions, etc. There is so much to do in this neighborhood. I can't imagine living anywhere else. Once you book, I will send you a link to my neighborhood blog. Local Points of Interest: Union Square Park/Farmers Market (East 14th Street) East River Park (FDR) Little Tokyo (East 9th Street) Little India (East 6th Street) McSorley's Old Ale House (East 7th Street) Whole Foods Market (East 14th Street) Union Square Cafe (East 16th Street)",
+    "host name" : "Chris"
+}
+------------
+Question 6
+
+db.listingsAndReviews.aggregate([
+    { $match: { "address.market": { $in: [ "Porto", "Montreal", "Barcelona", "Istanbul" ] } } },
+    { $group: { _id: "$address.market", "NumberOfListings": { $sum: 1 } } },
+    { $sort: { NumberOfListings : -1 } }
+]);
+
+Output:
+/* 1 */
+{
+    "_id" : "Istanbul",
+    "NumberOfListings" : 660.0
+}
+
+/* 2 */
+{
+    "_id" : "Montreal",
+    "NumberOfListings" : 648.0
+}
+
+/* 3 */
+{
+    "_id" : "Barcelona",
+    "NumberOfListings" : 632.0
+}
+
+/* 4 */
+{
+    "_id" : "Porto",
+    "NumberOfListings" : 554.0
+}
+------------
+Question 7
+
+db.games.find( 
+{"date":{$gte:ISODate("2002-07-01"),  $lt : ISODate("2003-07-01")},
+"teams":{$elemMatch:{"name":"Golden State Warriors","score":{$gte : 120}}}},
+{ "date":1,  "teams.name":1,"teams.score":1,_id:0 }).sort({"date":1});
+
+Output:
+/* 1 */
+{
+    "date" : ISODate("2002-11-16T05:00:00.000Z"),
+    "teams" : [ 
+        {
+            "name" : "Golden State Warriors",
+            "score" : 135
+        }, 
+        {
+            "name" : "Orlando Magic",
+            "score" : 92
+        }
+    ]
+}
+
+/* 2 */
+{
+    "date" : ISODate("2003-03-08T05:00:00.000Z"),
+    "teams" : [ 
+        {
+            "name" : "Milwaukee Bucks",
+            "score" : 138
+        }, 
+        {
+            "name" : "Golden State Warriors",
+            "score" : 133
+        }
+    ]
+}
+
+/* 3 */
+{
+    "date" : ISODate("2003-04-08T04:00:00.000Z"),
+    "teams" : [ 
+        {
+            "name" : "Golden State Warriors",
+            "score" : 128
+        }, 
+        {
+            "name" : "Utah Jazz",
+            "score" : 102
+        }
+    ]
+}
+------------
+Question 8
+
+db.games.find(
+{"teams.name":{$all:["Boston Celtics","Los Angeles Lakers"]},
+"date":{$gte : ISODate("2004-01-01"),  $lt : ISODate("2005-01-01") } },
+{"players":"$box.players.player",_id:0});
+
+Output:
+/* 1 */
+{
+    "players" : [ 
+        [ 
+            "Kobe Bryant", 
+            "Shaquille O'Neal", 
+            "Gary Payton", 
+            "Rick Fox", 
+            "Stanislav Medvedenko", 
+            "Kareem Rush", 
+            "Luke Walton", 
+            "Bryon Russell", 
+            "Derek Fisher", 
+            "Brian Cook", 
+            "Devean George"
+        ], 
+        [ 
+            "Paul Pierce", 
+            "Chucky Atkins", 
+            "Mark Blount", 
+            "Jiri Welsch", 
+            "Brandon Hunter", 
+            "Ricky Davis", 
+            "Chris Mihm", 
+            "Walter McCarty", 
+            "Marcus Banks", 
+            "Jumaine Jones"
+        ]
+    ]
+}
+------------
+Question 10
+
+db.movies.find(
+{"genres":{$all:["Action","Sci-Fi"]},"year": 1998},
+    {_id:0,  "title":1,"genres":1,"year":1,"tomatoes.critic.rating":1}  
+).sort({"tomatoes.critic.rating":-1}).limit(3);
+
+Output:
+/* 1 */
+{
+    "year" : 1998,
+    "genres" : [ 
+        "Action", 
+        "Adventure", 
+        "Sci-Fi"
+    ],
+    "title" : "Star Trek: Insurrection",
+    "tomatoes" : {
+        "critic" : {
+            "rating" : 5.8
+        }
+    }
+}
+
+/* 2 */
+{
+    "year" : 1998,
+    "genres" : [ 
+        "Action", 
+        "Drama", 
+        "Sci-Fi"
+    ],
+    "title" : "Deep Impact",
+    "tomatoes" : {
+        "critic" : {
+            "rating" : 5.8
+        }
+    }
+}
+
+/* 3 */
+{
+    "year" : 1998,
+    "genres" : [ 
+        "Action", 
+        "Adventure", 
+        "Sci-Fi"
+    ],
+    "title" : "Armageddon",
+    "tomatoes" : {
+        "critic" : {
+            "rating" : 5.2
+        }
+    }
+}
+------------
+Question 11
+
+db.movies.aggregate([
+    {$match:{"year":{$gte:2005},"year":{$lte:2010}}},
+    {$unwind:"$cast"},
+    {$match:{$or:[{"cast":"John C. Reilly"},{"cast":"Will Ferrell"},{"cast":"Ewan McGregor"},
+    {"cast":"Meryl Streep"},{"cast":"Melissa McCarthy"}]}},
+    {$group:{_id: "$cast", "TotalFilms":{$sum:1}}},
+    {$sort: {TotalFilms: -1}}
+]);
+
+Output:
+/* 1 */
+{
+    "_id" : "Meryl Streep",
+    "TotalFilms" : 35.0
+}
+
+/* 2 */
+{
+    "_id" : "Ewan McGregor",
+    "TotalFilms" : 26.0
+}
+
+/* 3 */
+{
+    "_id" : "Will Ferrell",
+    "TotalFilms" : 18.0
+}
+
+/* 4 */
+{
+    "_id" : "John C. Reilly",
+    "TotalFilms" : 13.0
+}
+
+/* 5 */
+{
+    "_id" : "Melissa McCarthy",
+    "TotalFilms" : 2.0
+}
+------------
+Question 13
+
+
+db.games.aggregate([
+  {
+    $unwind : '$box'
+  },
+  {
+    $project : {
+      _id : '$_id',
+      stat : {
+        $cond : [
+          { $gt : ['$box.won', 0] },
+          '$box.team.ast',
+          { $multiply : ['$box.team.ast', -1] }
+        ]
+      }
+    }
+  },
+  {
+    $group : {
+      _id : '$_id',
+      stat : { $sum : '$stat' }
+    }
+  },
+  {
+    $project : {
+      _id : '$_id',
+      winningTeamHigher : { $gte : ['$stat', 0] }
+    }
+  },
+  {
+    $group : {
+      _id : '$winningTeamHigher',
+      count : { $sum : 1 }
+    }
+  }
+]);
+
+db.games.aggregate([
+  { $unwind : '$box' },
+  { $group : { _id : '$box.team.ast',
+                winPercentage : { $avg : '$box.won' } } },
+  { $sort : { _id : -1 } }
+]);
+
+Interpretation: The first query indicates that the team which recorded more assists won 23501 games out of the 31686
+games in the database (= 74.2%). The second query shows that as the number of assists goes up,
+the win percentage increases. Running a regression with win percentage as the dependent variable and assists as the
+independent variable has an R-squared value of 0.9661, meaning assists help explain a significant portion of the 
+variation in win percentage. Thus, my query results strongly support the hypothesis that any given team is more
+likely to win if it works together better as a team.
+------------
+Question 14
+
+db.games.aggregate([
+  { $unwind : '$box' },
+  { $group : { _id : '$box.team.tov',
+                winPercentage : { $avg : '$box.won' } } },
+  { $sort : { _id : -1 } }
+]);
+
+db.games.aggregate([
+  { $unwind : '$box' },
+  { $group : { _id : '$box.team.pf',
+                winPercentage : { $avg : '$box.won' } } },
+  { $sort : { _id : -1 } }
+]);
+
+Analysis: Each additional turnover is a stronger predictor of whether a team will win or lose a game than each
+additional personal foul. This is because the R-squared value for turnovers is 0.8968 and 0.4289 for personal
+fouls. The latter suggests that the number of turnovers predicts the variation in win percentage better than the 
+number of personal fouls.
