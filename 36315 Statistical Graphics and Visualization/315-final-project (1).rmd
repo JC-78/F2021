@@ -1,0 +1,252 @@
+---
+title: "315 final project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(tm)
+library(wordcloud)
+```
+
+**Introduction**
+
+This project explores a dataset of STEM salary records from top companies, such as FAANG, Oracle, Ebay, etc. The dataset contains 22429 data instances and contains total of 29 variables. 
+
+The quantitative variables of interest are:
+1) totalyearlycompensation (total yearly compensation)
+2) yearsofexperience (years of experience)
+3) yearsatcompany (years at a company)
+
+The categorical variables of interest are:
+1) title
+2) gender (male, female, or other)
+3) race (as binary variables Race_Asian = 1 or 0, Race_White = 1 or 0, etc.)
+
+The first few lines of data appear as follows: 
+
+```{r}
+df=read.csv("/Users/joonghochoi/Desktop/Levels_Fyi_Salary_Data.csv")
+#df = read.csv("~/Downloads/Levels_Fyi_Salary_Data.csv")
+head(df)
+```
+Through this project, we aim to explore and debunk the rumours/stereotypes we commonly come across in the STEM field. Therefore, the goal for this project is to explore the following hypotheses: 
+
+1) How does gender affect company and title in STEM?
+
+2) How do education and experience affect compensation?
+
+3) How does race affect salary and title in STEM?
+
+**Exploratory Data Analysis**
+
+First, we want to explore the relationship between each pair of quantitative variables:
+
+```{r}
+pairs(data.frame(df$totalyearlycompensation, df$yearsofexperience, df$yearsatcompany))
+```
+
+From the pairs plot, we observe interesting trends between years of experience and years at company: while there appears to be a linear correlation, many instances with ample years of experience seem to have very low years at company. However, this makes sense given the context of the data, if someone switch jobs their years at company would reset while years of experience continues to grow. We also observe that years of experience does not have a linear correlation with total yearly compensation as one might suspect. But this also makes sense because someone who has 30 years of industry experience is likely retired or close to retiring, therefore, may lean toward doing more casual, less paying but fun work rather than progressing their career and compensation. 
+
+Next we want to explore our categorical variables using bar plots.
+
+```{r}
+library(ggplot2)
+ggplot(df, aes(x=title)) +
+geom_bar(fill='red') +  labs(x='title') + theme(axis.text.x=element_text(angle = -90, hjust = 0))+ggtitle("Histogram of job titles in STEM field ")
+```
+
+Here, we see that software engineer has significantly more count than all other titles, meaning it is the most popular title overall, followed by product manager, software engieer manager, and data scientist. 
+
+```{r}
+ggplot(df, aes(x=gender)) +
+geom_bar(fill='pink') +  labs(x='gender')+ggtitle("Histogram of genders in STEM field ")
+```
+
+For the gender variable, we see that there are significantly more male than female, and other gender is virtually non-existent in the STEM work field of top companies.
+
+```{r}
+df$race = ifelse(df$Race_Asian == 1, "Asian",
+ ifelse(df$Race_White == 1, "White",
+ 	ifelse(df$Race_Two_Or_More == 1, "Two or more",
+ 		ifelse(df$Race_Hispanic == 1, "Hispanic", "Black"))))
+
+df$race = as.factor(df$race)
+```
+
+
+```{r}
+ggplot(df, aes(x=race, y=totalyearlycompensation)) +  geom_boxplot(fill='green') + ylim(0, 1e+06) + theme(axis.text.x=element_text(angle = -90, hjust = 0))+ggtitle("Boxplot that shows relationship between race and total yearly compensation")
+```
+
+Lastly, we take a look at race vs salary represented in total yearly compensation. We see that the median salary across all race are roughly the same, with black people being slightly lower than the rest, and Asian people having the highest median salary. The boxes overlap, meaning there is not a significant difference in total yearly compensation across races. 
+
+**Hypothesis 1: How does gender affect salary and title in STEM?**
+
+```{r}
+data.male = subset(df, gender == "Male")
+data.female = subset(df, gender == "Female")
+
+company.male = Corpus(VectorSource(data.male$company))
+company.female = Corpus(VectorSource(data.female$company))
+```
+
+```{r}
+#change to lowercase
+company.male <- suppressWarnings(tm_map(company.male, content_transformer(tolower)))
+# Remove punctuations
+company.male <- suppressWarnings(tm_map(company.male, removePunctuation))
+# Eliminate extra white spaces
+company.male <- suppressWarnings(tm_map(company.male, stripWhitespace))
+
+#change to lowercase
+company.female <- suppressWarnings(tm_map(company.female, content_transformer(tolower)))
+# Remove punctuations
+company.female <- suppressWarnings(tm_map(company.female, removePunctuation))
+# Eliminate extra white spaces
+company.female <- suppressWarnings(tm_map(company.female, stripWhitespace))
+
+dtm.company.male = DocumentTermMatrix(company.male, control = list(stopwords = TRUE, stemming = TRUE))
+dtm.company.female = DocumentTermMatrix(company.female, control = list(stopwords = TRUE, stemming = TRUE))
+```
+
+```{r}
+#put the male and female companys into one corpus
+companyMaleFemale = tm:::c.VCorpus(company.male, company.female)
+companyMaleFemale = tm_map(companyMaleFemale, PlainTextDocument)
+
+#remove stop words, perform stemming
+companyMaleFemale = tm_map(companyMaleFemale, removeWords, stopwords("english"))
+companyMaleFemale = tm_map(companyMaleFemale, stemDocument)
+
+#term-document matrix
+tdm_maleFemale <- TermDocumentMatrix(companyMaleFemale)
+
+#convert to a matrix class
+tdm_maleFemale = as.matrix(tdm_maleFemale)
+```
+
+```{r}
+m = nrow(data.male)
+f = nrow(data.female)
+tdm_male = rowSums(tdm_maleFemale[, 1:m])
+tdm_female = rowSums(tdm_maleFemale[,(m+1):(m+f)])
+
+tdm_both_maleFemale = cbind(tdm_male, tdm_female)
+colnames(tdm_both_maleFemale) = c("Male", "Female")
+
+comparison.cloud(tdm_both_maleFemale, random.order = FALSE,
+                 colors = c("red", "gray"), max.words = 100)
+```
+
+
+A comparison word cloud was made using the subset of the data separated by male and female gender on the different companies present in the dataset. The comparison word cloud shows that Amazon hires more males than females by a significant amount and Microsoft hires more females than males. This concludes that many of the companies that offer STEM positions hire based on gender of the applicants.
+
+
+```{r}
+data.mf = subset(df, gender == "Male" | gender == "Female")
+
+mosaicplot(table(data.mf$gender, data.mf$title), main = "Mosaic Plot: STEM Positions by Gender", shade = TRUE, las = 1)
+```
+
+A mosaic plot of the different positions based on gender is made. The different colors show the difference (positive or negative) in the quantity of the specified gender and position compared to if gender and position were actually independent. The plot shows that the position with the largest count, Software Engineer, has a much larger number of males than is expected. Similarly, we can also conclude that the number of females is also much smaller than expected if gender and position were independent. Overall, we can see that females actually have more positions that are more than expected than males, but these positions are less STEM-intensive such as Recruiter. We also note that since most squares are colored, we can safely assume that gender and position are dependent. We will perform a chi-square test of proportions to make prove our assumption.
+
+```{r}
+chisq.test(table(data.mf$gender, data.mf$title))
+```
+
+Since the p-value is less than 0.05, there is enough evidence to suggest that in the subset of data of male and female gender, gender and title (position) are dependent.
+
+**Hypothesis 2: How do education and experience affect compensation?** 
+
+We wanted to learn about how education and experience affect compensation. The question suggests we should examine Bachelors_Degree, Masters_Degree, total yearly compensation, years of experience, years at company, base salary, stock grant value, bonus.
+
+Thus, we performed PCA on total yearly compensation, years of experience, years at company, base salary, stock grant value, bonus. We decided to use the four principal components, as they covered 90% of the variance in the data. 
+
+We also created a variable 'income' in a way such that it is 
+-low if total yearly compensation is lower than 188000
+-medium if the total yearly compensation is between 188,000 and 400,000
+-high if the total yearly compensation is higher than 400,000.
+
+As a result, we have the following visualization:
+
+```{r}
+suppressMessages(attach(df))
+data1<-df[order(totalyearlycompensation),]
+data1$income<-ifelse(data1$totalyearlycompensation<188000,"low",
+                     (ifelse(df$totalyearlycompensation<400000,"med","high")))
+table(data1$income)
+data.subset<-subset(data1,select=c("totalyearlycompensation","yearsofexperience","yearsatcompany","basesalary","stockgrantvalue","bonus"))
+data.subset = apply(data.subset, MARGIN = 2, FUN = function(x) x - mean(x)) #center
+data.subset = apply(data.subset, MARGIN = 2, FUN = function(x) x / sd(x)) #standardize
+data.pca=prcomp(data.subset,center=TRUE,scale.=TRUE)
+summary(data.pca)
+X = as.matrix(data.subset)
+#the principal components, which are
+#defined as X times the rotation matrix:
+prinComps = X%*%data.pca$rotation
+#convert to a data.frame
+prinComps = as.data.frame(prinComps)
+prinComps$income=data1$income
+ggplot(data=prinComps,aes(x=PC1,y=PC2))+geom_point(aes(color=income))+ggtitle("Relationship between PC1 and PC2 for income levels")
+```
+
+Out of all visualization combinations between four principal components, the clustering seemed most clear when using PC1 and PC2. It is difficult to distinguish between medium and high income groups, because there is huge overlap between the two groups. Medium income group seems to be between -5 and 30 for PC1 and -10 and 10 for PC2; high income group seems to be between -5 and 12.5 for PC1 and -5 and 5 for PC2. 
+
+On th other hand, it is easy to distinguish low income group from the other two income groups, as low income group seems to be on the top left edge of the overall cluster. The low income group seems to be between -5 and 5 for PC1 and -5 and 10 for PC2. 
+
+Overall, this graph seems to suggest that low income group can clearly be clustered from the principal components created from the variables that were previously mentioned. This means there is certain pattern associated with total yearly compensation, years of experience, years at company, base salary, stock grant value, bonus for the low income group. Thus, this graph shows that education and experience do affect compensation to a certain extent. 
+
+```{r}
+df$Masters_Degree<-as.factor(df$Masters_Degree)
+df$Bachelors_Degree<-as.factor(df$Bachelors_Degree)
+ggplot(df,aes(x=yearsofexperience,y=totalyearlycompensation,color=Masters_Degree))+geom_point(aes(shape=Bachelors_Degree))+ggtitle("Relationship between years of experience and total yearly compensation \n while accounting for education")+geom_smooth(method=lm, se=FALSE, formula = y ~ x)
+```
+
+It is believed in the STEM field that one needs to attain Masters Degree to earn higher compensation. However, interestingly, as you can see from the great overlap between the regression lines for with and without masters degree, there is no significant difference in total yearly compensation between those who have or do not have Masters Degree. In addition, the graph above shows that majority of employees in STEM field do not have Masters Degree; in fact, many of them do not even have Bachelors Degree as well. The top four points of total yearly compensation correspond to no bachelor's degree. Therefore, this belief is likely not true. 
+
+Also, it seems the starting salary range is from 10000 to 0.5e+06. As the years of experience increase, the range becomes wider. However, after 15 years, the general increase in total yearly compensation seems to stop. Therefore, the education doesn't seem to play a significant role in influencing the compensation, whereas the experience does. 
+
+**Hypothesis 3: How does race affect salary and title in STEM?**
+
+Before we explore this hypothesis, we must clean the race component of the dataset, as it has a lot of NA values for the Race variable. Thus, we make a NA free dataset called df.
+
+```{r}
+detach(df)
+df<-df[!is.na(df$Race), -3]
+```
+
+
+First, let's explore the relation between race and title.
+
+```{r}
+ggplot(df, aes(x = title, fill = Race)) + geom_bar()+ theme(axis.text.x = element_text(angle = 90))+ggtitle("Histogram of different job titles for different races")
+```
+
+From our stacked bar plot, we can make some observations about race and title as a pair of variables. Firstly, it is clear from our dataset that the most frequent title is as a Software Engineer
+
+Further, we can see across all the bars that the two most frequently hired races for these titles in STEM are Asian, followed by White as the 2 clear denominators. Then Hispanic has a lot less, and Black and 2 or more are clearly the least. In fact across all the titles the most frequent races are White and Asian (we can even see the smaller bars are mostly orange and/or pink
+
+Thus, we can conclude that there is somewhat a relation. If you are Asian/White, there is a much higer frequency of you in the industry, suggesting that race is more commonly hired, however we cannot make any conclusions on if race affects your specific title, as all titles have a similar distribution of mostly asian and white.
+
+```{r}
+ggplot(df, aes(x=totalyearlycompensation, color=Race))+geom_density()+xlim(0,500000)+ggtitle("Density plot of total yearly compensation for different races")
+ggplot(df, aes(x=basesalary, color=Race))+geom_density()+xlim(0,500000)+ggtitle("Density plot of base salary for different races")
+```
+
+Our second graph is a conditional density plot of the total yearly compensation, colored by title. As we can see, all the lines are very similar on the plot, with no clear differences, thus we can say that your race should not affect your total yearly compensation
+
+Going one step further however, you can look into the base salary as well, and here we see that lines colored for Asian and White Races are a bit more to the right, implying that their base salary on average is a bit more than that of the other races, which could be because they are hired more primarily for the Software Engineering and other high paying jobs
+
+**Conclusion**
+
+In conclusion, our answers to the 3 research questions are:
+
+1) How does gender affect company and title in STEM?
+Assuming that this data was gathered at random from different STEM positions from across the country, it is evident from the several graphs and chi-square tests that gender has an effect on the title and company. We find that there are more males than females in the position with the largest number, but there are more females in positions that are not very STEM-intensive such as the recruiter position. We also note that there are certain companies that hire more males than females in general such as Amazon, but at the same time there are companies that hire more females than males such as Microsoft. Overall, for software engineering positions, males are more commonly hired compared to females.
+
+2) How do education and experience affect compensation? Ans: It is believed that one must come from prestigeous institutions and gain a lot of experience to attain high salary. However, it seems that education does not necessarily play a great role in influencing one's salary. Neverthless, greater experience seems to correlate to higher salary. However, after 15 years, the general increase in compensation seems to gradually stop and plateau. 
+
+3) How does race affect salary and title in STEM? Well, it is clear that those with Asian and White backgrounds are hired a lot more frequently in the STEM marketplace, especially in technical fields like Software Engineering, but really across all the titles we've looked at. As a result, they also are payed a little more on average, and that is probably because they are simply hired for the more technical (and so higher paying) positions. But this difference is slight. That said, your race does not directly have a relationship to a specific title. The trend of Asian and White being the main races is for all titles, and so it is an industry wide feature. Therefore, this suggests that if you are not Asian and White, you simply may find you have a higher barrier to entry into STEM. Thus, YES: Race does have an affect. Overall, if you are White or Asian, you are more commonly hired as compared to the other races, and such benefits reflect a bit on the salary and type of titles as well.
+
